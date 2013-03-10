@@ -2,8 +2,8 @@
 require 'mongo'
 require 'pry'
 
-module Fabstar
-  class Datastore
+module MikutterFabster
+  class DataStore
     def initialize(id)
       @id = id
     end
