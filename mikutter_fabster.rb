@@ -20,33 +20,35 @@ module MikutterFabster
     end
 
     def config
-      @config ||= MikutterFabster.config.select {|key, val| [:host, :port].include? key }
+      @config ||= MikutterFabster.config.select {|k, v| [:host, :port].include? k }.map {|k, v| v }
     end
 
     def client
-      @client ||= Mongo::MongoClient.new(config)
+      @client ||= Mongo::MongoClient.new(*config)
     end
 
     def tweets
-      client.db("tweeamon").cllection("tweets")
+      client.db("tweeamon").collection("tweets")
     end
 
     def my_mosts
-      tweets.find({"user.id" => @id }, {"favorite_count" => {"$gt" => 0}}).sort({"favorite_count" => -1})
+      tweets.find({"user.id" => @id, "favorite_count" => {"$gt" => 0}})
+        .sort({"favorite_count" => -1})
+        .limit(50)
+    end
+  end
+
+  class ExtHash
+    def initialize(raw)
+      @raw = raw
     end
 
-    class ExtHash
-      def initialize(raw)
-        @raw = raw
-      end
+    def method_missing(name, *args)
+      @raw.hash_key?(name.to_s) ? @raw[name.to_s] : @raw.__send__(:method_missing, name, *args)
+    end
 
-      def method_missing(name, *args)
-        @raw.hash_key?(name.to_s) ? @raw[name.to_s] : @raw.__send__(:method_missing, name, *args)
-      end
-
-      def respond_to_missing(name, include_private)
-        @raw.hash_key?(name) || @raw.__send__(:respond_to_missing, name, include_private)
-      end
+    def respond_to_missing(name, include_private)
+      @raw.hash_key?(name) || @raw.__send__(:respond_to_missing, name, include_private)
     end
   end
 
@@ -60,7 +62,8 @@ module MikutterFabster
 
     on_period do
       timeline(:fabster).clear
-      timeline(:fabster) << [msgs]
+      binding.pry
+      #timeline(:fabster) << store.my_mosts.map {|most| Message.new(ExtHash.new(most)) }
     end
   end
 end
