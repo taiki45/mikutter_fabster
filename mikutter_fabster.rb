@@ -38,24 +38,6 @@ module MikutterFabster
     end
   end
 
-  class ExtHash
-    def initialize(raw)
-      @raw = raw
-    end
-
-    def [](key)
-      @raw[key.to_s]
-    end
-
-    def method_missing(name, *args)
-      @raw.__send__ name, *args
-    end
-
-    def respond_to_missing(name, include_private)
-      @raw.__send__ :respond_to_missing, name, include_private
-    end
-  end
-
   Plugin.create :fabstar do
     id = Service.primary.user_obj.id
     store = DataStore.new id
@@ -66,8 +48,11 @@ module MikutterFabster
 
     on_period do
       timeline(:fabster).clear
-      binding.pry
-      #timeline(:fabster) << store.my_mosts.map {|most| Message.new(ExtHash.new(most)) }
+      timeline(:fabster) << store.my_mosts.map do |most|
+        m = JSON.parse(most.to_json).symbolize
+        m[:message] = m[:text]
+        Message.new_ifnecessary m
+      end
     end
   end
 end
