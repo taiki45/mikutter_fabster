@@ -44,11 +44,11 @@ module MikutterFabster
     end
 
     def method_missing(name, *args)
-      @raw.hash_key?(name.to_s) ? @raw[name.to_s] : @raw.__send__(:method_missing, name, *args)
+      @raw.has_key?(name.to_s) ? @raw[name.to_s] : @raw.__send__(:method_missing, name, *args)
     end
 
     def respond_to_missing(name, include_private)
-      @raw.hash_key?(name) || @raw.__send__(:respond_to_missing, name, include_private)
+      @raw.has_key?(name) || @raw.__send__(:respond_to_missing, name, include_private)
     end
   end
 
