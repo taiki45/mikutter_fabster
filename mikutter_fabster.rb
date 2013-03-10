@@ -43,12 +43,16 @@ module MikutterFabster
       @raw = raw
     end
 
+    def [](key)
+      @raw[key.to_s]
+    end
+
     def method_missing(name, *args)
-      @raw.has_key?(name.to_s) ? @raw[name.to_s] : @raw.__send__(:method_missing, name, *args)
+      @raw.__send__ name, *args
     end
 
     def respond_to_missing(name, include_private)
-      @raw.has_key?(name) || @raw.__send__(:respond_to_missing, name, include_private)
+      @raw.__send__ :respond_to_missing, name, include_private
     end
   end
 
