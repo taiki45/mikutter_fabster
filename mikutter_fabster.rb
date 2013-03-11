@@ -49,9 +49,13 @@ module MikutterFabster
     on_period do
       timeline(:fabster).clear
       timeline(:fabster) << store.my_mosts.map do |most|
-        m = JSON.parse(most.to_json).symbolize
-        m[:message] = m[:text]
-        Message.new_ifnecessary m
+        message_source = JSON.parse(most.to_json).symbolize
+        message = MikuTwitter::ApiCallSupport::Request::Parser.message(message_source)
+        if message_source[:favorite_users]
+          users = message_source[:favorite_users].map &MikuTwitter::ApiCallSupport::Request::Parser.method(:user)
+          message.favorited_by.merge users
+        end
+        message
       end
     end
   end
