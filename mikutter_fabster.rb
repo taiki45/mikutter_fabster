@@ -43,16 +43,27 @@ module MikutterFabster
     store = DataStore.new id
 
     tab :fabster, 'f' do
-      timeline :fabster
+      timeline :fabster do
+        order do |message|
+          message.favorited_by.size
+        end
+      end
     end
 
     on_period do
-      timeline(:fabster).clear
-      timeline(:fabster) << store.my_mosts.map do |most|
-        m = JSON.parse(most.to_json).symbolize
-        m[:message] = m[:text]
-        Message.new_ifnecessary m
+      store.my_mosts.each do |most|
+        message_source = JSON.parse(most.to_json).symbolize
+        message = MikuTwitter::ApiCallSupport::Request::Parser.message(message_source)
+        if message_source[:favorite_users]
+          users = message_source[:favorite_users].map &MikuTwitter::ApiCallSupport::Request::Parser.method(:user)
+          message.favorited_by.merge users
+        end
+        Plugin.call(:message_modified, message)
       end
+    end
+
+    on_message_modified do |message|
+      timeline(:fabster) << message if message.from_me? and not message.favorited_by.empty?
     end
   end
 end
