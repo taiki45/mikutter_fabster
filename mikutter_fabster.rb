@@ -43,7 +43,11 @@ module MikutterFabster
     store = DataStore.new id
 
     tab :fabster, 'f' do
-      timeline :fabster
+      timeline :fabster do
+        order do |message|
+          message.favorited_by.size
+        end
+      end
     end
 
     on_period do
