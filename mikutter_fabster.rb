@@ -42,6 +42,20 @@ module MikutterFabster
     id = Service.primary.user_obj.id
     store = DataStore.new id
 
+    def celebrate?(msg)
+      turnings = [50, 100, 250]
+      msg.from_me? && turnings.include?(msg.favorited_by.count)
+    end
+
+    def celebrate(msg)
+      link = "http://twitter.com/#{Service.primary.user_obj}/status/#{msg.id}"
+      Plugin.call(
+        :update,
+        nil,
+        [Message.new(message: "Congrats on your #{msg.favorited_by.count} tweets! #{link}", system: true)]
+      )
+    end
+
     tab :fabster, 'f' do
       timeline :fabster do
         order do |message|
@@ -64,6 +78,7 @@ module MikutterFabster
 
     on_message_modified do |message|
       timeline(:fabster) << message if message.from_me? and not message.favorited_by.empty?
+      celebrate(message) if celebrate? message
     end
   end
 end
