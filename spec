@@ -7,4 +7,4 @@ depends:
 version: '1.0'
 author: taiki45
 name: fabster
-description: clone your favstar into mikutter
+description: clone favstar into mikutter
