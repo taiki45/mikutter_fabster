@@ -46,11 +46,6 @@ module MikutterFabster
 
   Plugin.create :fabstar do
     store = DataStore.new(Service.primary.user_obj.id)
-    start_time = Time.now
-
-    recent_faved = lambda do |msg|
-      msg.from_me? && !(msg.favorited_by.empty?) && Time.parse(msg.to_hash[:created_at]) > start_time
-    end
 
     def celebrate?(msg)
       turnings = [50, 100, 250]
@@ -64,6 +59,20 @@ module MikutterFabster
         nil,
         [Message.new(message: "Congrats on your #{msg.favorited_by.count} tweets! #{link}", system: true)]
       )
+    end
+
+    def faved_one?(message)
+      message.from_me? && !(message.favorited_by.empty?)
+    end
+
+    def to_msg(source)
+      message_source = JSON.parse(source.to_json).symbolize
+      message = MikuTwitter::ApiCallSupport::Request::Parser.message(message_source)
+      if message_source[:favorite_users]
+        users = message_source[:favorite_users].map &MikuTwitter::ApiCallSupport::Request::Parser.method(:user)
+        message.favorited_by.merge users
+      end
+      message
     end
 
     tab :fabster_most, 'M' do
@@ -84,39 +93,26 @@ module MikutterFabster
 
     on_period do
       store.my_mosts.each do |most|
-        message_source = JSON.parse(most.to_json).symbolize
-        message = MikuTwitter::ApiCallSupport::Request::Parser.message(message_source)
-        if message_source[:favorite_users]
-          users = message_source[:favorite_users].map &MikuTwitter::ApiCallSupport::Request::Parser.method(:user)
-          message.favorited_by.merge users
-        end
-        Plugin.call(:most_modified, message)
+        Plugin.call(:most_modified, to_msg(most))
       end
 
-      store.my_recents.each do |most|
-        message_source = JSON.parse(most.to_json).symbolize
-        message = MikuTwitter::ApiCallSupport::Request::Parser.message(message_source)
-        if message_source[:favorite_users]
-          users = message_source[:favorite_users].map &MikuTwitter::ApiCallSupport::Request::Parser.method(:user)
-          message.favorited_by.merge users
-        end
-        Plugin.call(:recent_modified, message)
+      store.my_recents.each do |recent|
+        Plugin.call(:recent_modified, to_msg(recent))
       end
     end
 
     on_message_modified do |message|
-      timeline(:fabster_recent) << message if recent_faved.(message)
-      timeline(:fabster_most) << message if message.from_me? && !(message.favorited_by.empty?)
-
+      timeline(:fabster_recent) << message if faved_one?(message)
+      timeline(:fabster_most) << message if faved_one?(message)
       celebrate(message) if celebrate? message
     end
 
     on_most_modified do |message|
-      timeline(:fabster_most) << message if message.from_me? && !(message.favorited_by.empty?)
+      timeline(:fabster_most) << message if faved_one?(message)
     end
 
     on_recent_modified do |message|
-      timeline(:fabster_recent) << message if message.from_me? && !(message.favorited_by.empty?)
+      timeline(:fabster_recent) << message if faved_one?(message)
     end
   end
 end
