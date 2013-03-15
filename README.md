@@ -3,6 +3,14 @@ mikutter ふぁぼ☆コレ
 
 ## About
 mikutter でふぁぼすたに近い機能を実現するプラグインです.
+外部 DB にデータを入れるので mikutter が再起動しても消えることはないのです.
+
+## Features
+* 自分の Most がわかる☆
+* 自分の Recent が起動直後から見れる☆
+
+## Plan
+* 自分がふぁぼった履歴のタブ(descovery 相当)
 
 ## Status
 開発初期段階なのでいろいろ変わる可能性があります.
@@ -16,4 +24,4 @@ ChangeLog にかくのでそれを参照して追従してください.
 
 設定ふぁいるは `config.yaml` という名前のファイルを `sample.yaml` を参考にかいてください.
 
-あとは develop ブランチのmikutter を起動すると `f` というタブができていると思います.
+あとは develop ブランチのmikutter を起動すると `M`, `F` というタブができていると思います.
