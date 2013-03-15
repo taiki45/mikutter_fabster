@@ -15,6 +15,8 @@ module MikutterFabster
   end
 
   class DataStore
+    attr_accessor :most_limit, :recent_limit
+
     def initialize(id)
       @id = id
     end
@@ -34,18 +36,20 @@ module MikutterFabster
     def my_mosts
       tweets.find({"user.id" => @id, "favorite_count" => {"$gt" => 0}})
         .sort({"favorite_count" => -1})
-        .limit(50)
+        .limit(most_limit)
     end
 
     def my_recents
       tweets.find({"user.id" => @id, "favorite_count" => {"$gt" => 0}})
         .sort({"id" => -1})
-        .limit(20)
+        .limit(recent_limit)
     end
   end
 
   Plugin.create :fabster do
     store = DataStore.new(Service.primary.user_obj.id)
+    store.most_limit =  (UserConfig[:fabster_most_count] || 50)
+    store.recent_limit = (UserConfig[:fabster_recent_count] || 20)
 
     def celebrate?(msg)
       turnings = [50, 100, 250]
@@ -113,6 +117,11 @@ module MikutterFabster
 
     on_recent_modified do |message|
       timeline(:fabster_recent) << message if faved_one?(message)
+    end
+
+    settings "fabster" do
+      adjustment('most count', :fabster_most_count, 1, 400).tooltip('How many tweets to show on boot')
+      adjustment('recent count', :fabster_recent_count, 1, 400).tooltip('How many tweets to show on boot')
     end
   end
 end
