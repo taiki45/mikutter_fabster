@@ -44,7 +44,7 @@ module MikutterFabster
     end
   end
 
-  Plugin.create :fabstar do
+  Plugin.create :fabster do
     store = DataStore.new(Service.primary.user_obj.id)
 
     def celebrate?(msg)
