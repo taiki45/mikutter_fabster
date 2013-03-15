@@ -13,10 +13,6 @@ mikutter でふぁぼすたに近い機能を実現するプラグインです.
 * 自分がふぁぼった履歴のタブ(descovery 相当)
 * RT に対応する
 
-## Status
-開発初期段階なのでいろいろ変わる可能性があります.
-ChangeLog にかくのでそれを参照して追従してください.
-
 ## Setup
 いまはタイムラインの情報をたくわえるのに
  [twitter-daemon](https://github.com/taiki45/twitter_daemon) というバックグラウンドで
