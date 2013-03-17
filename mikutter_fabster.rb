@@ -15,13 +15,14 @@ module MikutterFabster
   end
 
   class DataStore
-    attr_accessor :most_limit, :recent_limit, :discovery_limit
+    attr_accessor :most_limit, :recent_limit, :discovery_limit, :last_limit
 
     def initialize(id)
       @id = id
       @most_limit = 20
       @recent_limit = 50
       @discovery_limit = 30
+      @last_limit = 200
     end
 
     def config
@@ -53,6 +54,10 @@ module MikutterFabster
         .sort({"id" => -1})
         .limit(discovery_limit)
     end
+
+    def last_tweets
+      tweets.find.sort({"id" => -1}).limit(last_limit)
+    end
   end
 
   Plugin.create :fabster do
@@ -60,6 +65,7 @@ module MikutterFabster
     store.most_limit = UserConfig[:fabster_most_count] if UserConfig[:fabster_most_count]
     store.recent_limit = UserConfig[:fabster_recent_count] if UserConfig[:fabster_recent_count]
     store.recent_limit = UserConfig[:fabster_discovery_count] if UserConfig[:fabster_discovery_count]
+    store.last_limit = UserConfig[:fabster_last_count] if UserConfig[:fabster_last_count]
 
     def celebrate?(msg)
       turnings = [50, 100, 250]
@@ -71,7 +77,7 @@ module MikutterFabster
       Plugin.call(
         :update,
         nil,
-        [Message.new(message: "Congrats on your #{msg.favorited_by.count} tweets! #{link}", system: true)]
+        [Message.new(message: "Congrats on your #{msg.favorited_by.count} tweet! #{link}", system: true)]
       )
     end
 
@@ -117,6 +123,12 @@ module MikutterFabster
       end
     end
 
+    on_boot do
+      store.last_tweets.each do |tweet|
+        timeline(:home_timeline) << to_msg(tweet)
+      end
+    end
+
     on_period do
       store.my_mosts.each do |most|
         Plugin.call(:most_modified, to_msg(most))
@@ -153,6 +165,7 @@ module MikutterFabster
       adjustment('most count', :fabster_most_count, 1, 400).tooltip('How many tweets to show')
       adjustment('recent count', :fabster_recent_count, 1, 400).tooltip('How many tweets to show on boot')
       adjustment('discovery count', :fabster_discovery_count, 1, 400).tooltip('How many tweets to show on boot')
+      adjustment('load count', :fabster_last_count, 1, 1000).tooltip('How many tweets to load on boot')
     end
   end
 end
