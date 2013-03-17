@@ -15,10 +15,13 @@ module MikutterFabster
   end
 
   class DataStore
-    attr_accessor :most_limit, :recent_limit
+    attr_accessor :most_limit, :recent_limit, :discovery_limit
 
     def initialize(id)
       @id = id
+      @most_limit = 20
+      @recent_limit = 50
+      @discovery_limit = 30
     end
 
     def config
@@ -44,12 +47,19 @@ module MikutterFabster
         .sort({"id" => -1})
         .limit(recent_limit)
     end
+
+    def my_discovery
+      tweets.find({"user.id" => {"$ne" => @id}, "favorite_count" => {"$gt" => 0}})
+        .sort({"id" => -1})
+        .limit(discovery_limit)
+    end
   end
 
   Plugin.create :fabster do
     store = DataStore.new(Service.primary.user_obj.id)
-    store.most_limit =  (UserConfig[:fabster_most_count] || 50)
-    store.recent_limit = (UserConfig[:fabster_recent_count] || 20)
+    store.most_limit = UserConfig[:fabster_most_count] if UserConfig[:fabster_most_count]
+    store.recent_limit = UserConfig[:fabster_recent_count] if UserConfig[:fabster_recent_count]
+    store.recent_limit = UserConfig[:fabster_discovery_count] if UserConfig[:fabster_discovery_count]
 
     def celebrate?(msg)
       turnings = [50, 100, 250]
@@ -67,6 +77,10 @@ module MikutterFabster
 
     def faved_one?(message)
       message.from_me? && !(message.favorited_by.empty?)
+    end
+
+    def fav_one?(message)
+      !(message.from_me?) && !(message.favorited_by.empty?)
     end
 
     def to_msg(source)
@@ -95,6 +109,14 @@ module MikutterFabster
       end
     end
 
+    tab :fabster_discovery, 'D' do
+      timeline :fabster_discovery do
+        order do |message|
+          Time.parse(message.to_hash[:created_at]).strftime("%s").to_i
+        end
+      end
+    end
+
     on_period do
       store.my_mosts.each do |most|
         Plugin.call(:most_modified, to_msg(most))
@@ -102,6 +124,10 @@ module MikutterFabster
 
       store.my_recents.each do |recent|
         Plugin.call(:recent_modified, to_msg(recent))
+      end
+
+      store.my_discovery.each do |tweet|
+        Plugin.call(:discovery_modified, to_msg(tweet))
       end
     end
 
@@ -119,9 +145,14 @@ module MikutterFabster
       timeline(:fabster_recent) << message if faved_one?(message)
     end
 
+    on_discovery_modified do |message|
+      timeline(:fabster_discovery) << message if fav_one?(message)
+    end
+
     settings "fabster" do
-      adjustment('most count', :fabster_most_count, 1, 400).tooltip('How many tweets to show on boot')
+      adjustment('most count', :fabster_most_count, 1, 400).tooltip('How many tweets to show')
       adjustment('recent count', :fabster_recent_count, 1, 400).tooltip('How many tweets to show on boot')
+      adjustment('discovery count', :fabster_discovery_count, 1, 400).tooltip('How many tweets to show on boot')
     end
   end
 end
