@@ -104,18 +104,22 @@ module MikutterFabster
       end
 
       on_boot do
-        store.last_tweets.each do |tweet|
-          timeline(:home_timeline) << to_msg(tweet)
+        Thread.new do
+          store.last_tweets.each do |tweet|
+            timeline(:home_timeline) << to_msg(tweet)
+          end
         end
       end
 
       on_period do
-        store.my_mosts.each do |most|
-          Plugin.call(:most_modified, to_msg(most))
-        end
+        Thread.new do
+          store.my_mosts.each do |most|
+            Plugin.call(:most_modified, to_msg(most))
+          end
 
-        store.my_recents.each do |recent|
-          Plugin.call(:recent_modified, to_msg(recent))
+          store.my_recents.each do |recent|
+            Plugin.call(:recent_modified, to_msg(recent))
+          end
         end
       end
 
