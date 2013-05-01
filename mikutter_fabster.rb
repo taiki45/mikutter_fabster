@@ -52,96 +52,84 @@ module MikutterFabster
     end
   end
 
-  if defined?(Plugin)
-    Plugin.create :fabster do
-      store = DataStore.new(Service.primary.user_obj.id)
-      store.most_limit = UserConfig[:fabster_most_count] if UserConfig[:fabster_most_count]
-      store.recent_limit = UserConfig[:fabster_recent_count] if UserConfig[:fabster_recent_count]
-      store.last_limit = UserConfig[:fabster_last_count] if UserConfig[:fabster_last_count]
+  Plugin.create :fabster do
+    store = DataStore.new(Service.primary.user_obj.id)
+    store.most_limit = UserConfig[:fabster_most_count] if UserConfig[:fabster_most_count]
+    store.recent_limit = UserConfig[:fabster_recent_count] if UserConfig[:fabster_recent_count]
+    store.last_limit = UserConfig[:fabster_last_count] if UserConfig[:fabster_last_count]
 
-      def celebrate?(msg)
-        turnings = [50, 100, 250]
-        msg.from_me? && turnings.include?(msg.favorited_by.count)
+    def celebrate?(msg)
+      turnings = [50, 100, 250]
+      msg.from_me? && turnings.include?(msg.favorited_by.count)
+    end
+
+    def celebrate(msg)
+      link = "http://twitter.com/#{Service.primary.user_obj}/status/#{msg.id}"
+      Plugin.call(
+        :update,
+        nil,
+        [Message.new(message: "Congrats on your #{msg.favorited_by.count} tweet! #{link}", system: true)]
+      )
+    end
+
+    def faved_one?(message)
+      message.from_me? && !(message.favorited_by.empty?)
+    end
+
+    def to_msg(source)
+      message_source = JSON.parse(source.to_json).symbolize
+      message = MikuTwitter::ApiCallSupport::Request::Parser.message(message_source)
+      if message_source[:favorite_users]
+        users = message_source[:favorite_users].map &MikuTwitter::ApiCallSupport::Request::Parser.method(:user)
+        message.favorited_by.merge users
       end
+      message
+    end
 
-      def celebrate(msg)
-        link = "http://twitter.com/#{Service.primary.user_obj}/status/#{msg.id}"
-        Plugin.call(
-          :update,
-          nil,
-          [Message.new(message: "Congrats on your #{msg.favorited_by.count} tweet! #{link}", system: true)]
-        )
-      end
-
-      def faved_one?(message)
-        message.from_me? && !(message.favorited_by.empty?)
-      end
-
-      def to_msg(source)
-        message_source = JSON.parse(source.to_json).symbolize
-        message = MikuTwitter::ApiCallSupport::Request::Parser.message(message_source)
-        if message_source[:favorite_users]
-          users = message_source[:favorite_users].map &MikuTwitter::ApiCallSupport::Request::Parser.method(:user)
-          message.favorited_by.merge users
-        end
-        message
-      end
-
-      tab :fabster_most, 'M' do
-        timeline :fabster_most do
-          order do |message|
-            message.favorited_by.size
-          end
+    tab :fabster_most, 'M' do
+      timeline :fabster_most do
+        order do |message|
+          message.favorited_by.size
         end
       end
+    end
 
-      tab :fabster_recent, 'R' do
-        timeline :fabster_recent do
-          order do |message|
-            Time.parse(message.to_hash[:created_at]).strftime("%s").to_i
-          end
+    tab :fabster_recent, 'R' do
+      timeline :fabster_recent do
+        order do |message|
+          Time.parse(message.to_hash[:created_at]).strftime("%s").to_i
         end
       end
+    end
 
-      on_boot do
-        Thread.new do
-          store.last_tweets.each do |tweet|
-            timeline(:home_timeline) << to_msg(tweet)
-          end
+    on_boot do
+      Thread.new do
+        store.last_tweets.each do |tweet|
+          timeline(:home_timeline) << to_msg(tweet)
+        end
+
+        store.my_mosts.each do |most|
+          message = to_msg(most)
+          timeline(:fabster_most) << message if faved_one?(message)
+        end
+
+        store.my_recents.each do |recent|
+          message = to_msg(recent)
+          timeline(:fabster_recent) << message if faved_one?(message)
         end
       end
+    end
 
-      on_period do
-        Thread.new do
-          store.my_mosts.each do |most|
-            Plugin.call(:most_modified, to_msg(most))
-          end
+    on_message_modified do |message|
+      timeline(:fabster_recent) << message if faved_one?(message)
+      timeline(:fabster_most) << message if faved_one?(message)
+      celebrate(message) if celebrate? message
+    end
 
-          store.my_recents.each do |recent|
-            Plugin.call(:recent_modified, to_msg(recent))
-          end
-        end
-      end
-
-      on_message_modified do |message|
-        timeline(:fabster_recent) << message if faved_one?(message)
-        timeline(:fabster_most) << message if faved_one?(message)
-        celebrate(message) if celebrate? message
-      end
-
-      on_most_modified do |message|
-        timeline(:fabster_most) << message if faved_one?(message)
-      end
-
-      on_recent_modified do |message|
-        timeline(:fabster_recent) << message if faved_one?(message)
-      end
-
-      settings "fabster" do
-        adjustment('most count', :fabster_most_count, 1, 400).tooltip('How many tweets to show')
-        adjustment('recent count', :fabster_recent_count, 1, 400).tooltip('How many tweets to show on boot')
-        adjustment('load count', :fabster_last_count, 1, 1000).tooltip('How many tweets to load on boot')
-      end
+    settings "fabster" do
+      adjustment('most count', :fabster_most_count, 1, 400).tooltip('How many tweets to show')
+      adjustment('recent count', :fabster_recent_count, 1, 400).tooltip('How many tweets to show on boot')
+      adjustment('load count', :fabster_last_count, 1, 1000).tooltip('How many tweets to load on boot')
     end
   end
 end
